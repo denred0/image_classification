@@ -32,7 +32,7 @@ val_transforms = A.Compose([
 ], p=1.0)
 
 model = get_model(config.MODEL_TYPE, config.NUM_CLASSES)
-model.load_state_dict(torch.load("logs/exp_0/acc_0.7148_epoch_1.pth"))
+model.load_state_dict(torch.load("logs/exp_1/acc_0.7630_epoch_1.pth"))
 model = model.to(config.DEVICE)
 model.eval()
 # print(model)
@@ -42,7 +42,7 @@ with open("classes.txt") as file:
     lines = file.readlines()
     class_names = [line.rstrip() for line in lines]
 
-output_dir = Path('data/inference/output')
+output_dir = Path('data/inference/output_dishes')
 if output_dir.exists() and output_dir.is_dir():
     shutil.rmtree(output_dir)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -53,7 +53,7 @@ correct = 0
 all = 0
 sm = torch.nn.Softmax()
 
-input_dir = "data/inference/input"
+input_dir = "data/inference/input_dishes"
 for root, dirs, files in os.walk(input_dir):
     for folder in tqdm(dirs):
 

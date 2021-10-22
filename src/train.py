@@ -206,10 +206,12 @@ def draw_result(lst_iter, train_loss, val_loss, train_acc, val_acc):
     axis[0].plot(lst_iter, train_loss, '-b', label='Training loss')
     axis[0].plot(lst_iter, val_loss, '-g', label='Validation loss')
     axis[0].set_title("Training and Validation loss")
+    axis[0].legend()
 
     axis[1].plot(lst_iter, train_acc, '-b', label='Training acc')
     axis[1].plot(lst_iter, val_acc, '-g', label='Validation acc')
     axis[1].set_title("Training and Validation acc")
+    axis[1].legend()
 
     # fig.tight_layout()
 
