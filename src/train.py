@@ -155,7 +155,7 @@ def valid_one_epoch(model, loader, loss_fn, device, epoch):
 
 
 def run_training(model, train_loader, valid_loader, optimizer, loss_fn, scheduler, exp_number, device, num_epochs):
-    Path("logs").joinpath("exp_" + str(exp_number)).mkdir(parents=True, exist_ok=True)
+    Path("logs").joinpath(config.MODEL_TYPE).joinpath("exp_" + str(exp_number)).mkdir(parents=True, exist_ok=True)
 
     if torch.cuda.is_available():
         print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
@@ -164,6 +164,8 @@ def run_training(model, train_loader, valid_loader, optimizer, loss_fn, schedule
     best_model_wts = copy.deepcopy(model.state_dict())
     best_epoch_acc = 0
     history = defaultdict(list)
+    early_stop_patience = 5
+    current_early_stop_patience = 0
 
     for epoch in range(1, num_epochs + 1):
         gc.collect()
@@ -183,8 +185,26 @@ def run_training(model, train_loader, valid_loader, optimizer, loss_fn, schedule
         if val_epoch_acc >= best_epoch_acc:
             best_epoch_acc = val_epoch_acc
             best_model_wts = copy.deepcopy(model.state_dict())
-            PATH = "logs/exp_" + str(exp_number) + "/acc_{:.4f}_epoch_{:.0f}.pth".format(best_epoch_acc, epoch)
+            PATH = Path("logs").joinpath(config.MODEL_TYPE).joinpath("exp_" + str(exp_number)).joinpath(
+                "e{:.0f}_val_loss_{:.4f}_val_acc_{:.4f}.pth".format(epoch, val_epoch_loss, val_epoch_acc))
             torch.save(model.state_dict(), PATH)
+
+            print()
+
+            end = time.time()
+            time_elapsed = end - start
+            print('Training complete in {:.0f}h {:.0f}m {:.0f}s'.format(
+                time_elapsed // 3600, (time_elapsed % 3600) // 60, (time_elapsed % 3600) % 60))
+            print("Best Accuracy: {:.4f}".format(best_epoch_acc))
+
+            # load best model weights
+            model.load_state_dict(best_model_wts)
+        else:
+            if current_early_stop_patience >= early_stop_patience:
+                print(f"Early stop on epoch {epoch}")
+                break
+            else:
+                current_early_stop_patience += 1
 
         print()
 
@@ -230,13 +250,18 @@ def draw_result(lst_iter, train_loss, val_loss, train_acc, val_acc):
     plt.show()
 
 
-def get_last_exp_number():
-    folders = [x[0] for x in os.walk("logs")][1:]
+def get_last_exp_number(model_name):
+    folders = [x[0] for x in os.walk(os.path.join("logs", model_name))][1:]
+    folders = [x.split("/")[-1] for x in folders]
+    folders_exp = []
+    for f in folders:
+        if "exp" in f:
+            folders_exp.append(f)
 
-    if not folders:
+    if not folders_exp:
         return 0
     else:
-        return max([int(x.split("_")[1]) for x in folders]) + 1
+        return max([int(x.split("_")[1]) for x in folders_exp]) + 1
 
 
 def main():
