@@ -73,7 +73,7 @@ def get_loaders(input_image_size, batch_size, mean, std, num_workers):
     ], p=1.0)
 
     train_path = Path("data/train_val_test_split/train")
-    train_files = list(train_path.rglob('*.' + 'jpg'))
+    train_files = list(train_path.rglob('*.' + 'png'))
     train_labels = [path.parent.name for path in train_files]
     label_encoder = LabelEncoder()
     label_encoder.fit_transform(train_labels)
@@ -85,13 +85,13 @@ def get_loaders(input_image_size, batch_size, mean, std, num_workers):
             f.write("%s\n" % item)
 
     valid_path = Path("data/train_val_test_split/val")
-    valid_files = list(valid_path.rglob('*.' + 'jpg'))
+    valid_files = list(valid_path.rglob('*.' + 'png'))
     valid_labels = [path.parent.name for path in valid_files]
     valid_labels = label_encoder.transform(valid_labels)
     valid_data = valid_files, valid_labels
 
     test_path = Path("data/train_val_test_split/test")
-    test_files = list(test_path.rglob('*.' + 'jpg'))
+    test_files = list(test_path.rglob('*.' + 'png'))
     test_labels = [path.parent.name for path in test_files]
     test_labels = label_encoder.transform(test_labels)
     test_data = test_files, test_labels
@@ -145,13 +145,14 @@ def visuazlize():
         config.IMAGE_SIZE,
         config.BATCH_SIZE,
         config.MEAN,
-        config.STD)
+        config.STD,
+        config.NUM_WORKERS)
 
-    fig, ax = plt.subplots(nrows=5, ncols=5, figsize=(12, 12), sharey=True, sharex=True)
+    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(12, 12), sharey=True, sharex=True)
 
     for i, fig_x in enumerate(ax.flatten()):
-        random_characters = int(np.random.uniform(0, 500))  # i
-        im_val, label = dataset_train[random_characters]
+        random_characters = int(np.random.uniform(0, 100))  # i
+        im_val, label = dataset_val[random_characters]
         img_label = " ".join(map(lambda x: x.capitalize(), label_encoder.inverse_transform([label])[0].split('_')))
         imshow(im_val.data.cpu(), title=img_label, plt_ax=fig_x)
 

@@ -20,41 +20,19 @@ from pathlib import Path
 import config, dataset
 from train_val_test_split import train_val_test_split
 
-
-def get_model(model_type, num_classes):
-    model = timm.create_model(model_type, pretrained=True)
-    in_features = model.head.in_features
-    model.head = nn.Linear(in_features, num_classes)
-
-    return model
-
-
-def save_feature_vectors(model, loader, output_size=(1, 1), file="train_effb6"):
-    model.eval()
-    images, labels = [], []
-
-    for idx, (x, y) in enumerate(tqdm(loader)):
-        x = x.to(config.DEVICE)
-
-        with torch.no_grad():
-            features = model.extract_features(x)
-            features = F.adaptive_avg_pool2d(features, output_size=output_size)
-        images.append(features.reshape(x.shape[0], -1).detach().cpu().numpy())
-        labels.append(y.numpy())
-
-    np.save(f"data_features/X_{file}.npy", np.concatenate(images, axis=0))
-    np.save(f"data_features/y_{file}.npy", np.concatenate(labels, axis=0))
-    model.train()
+from my_utils import seed_everything, get_model
 
 
 def fetch_scheduler(optimizer):
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.T_max[0], eta_min=config.min_lr[0])
+
     if config.scheduler == 'CosineAnnealingLR':
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.T_max[0], eta_min=config.min_lr[0])
     elif config.scheduler == 'CosineAnnealingWarmRestarts':
         scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=config.T_0[0], eta_min=config.min_lr[0])
     elif config.scheduler == 'ExponentialLR':
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99, verbose=False)
-    elif config.scheduler == None:
+    elif config.scheduler is None:
         return None
 
     return scheduler
@@ -154,8 +132,8 @@ def valid_one_epoch(model, loader, loss_fn, device, epoch):
     return epoch_loss, val_acc
 
 
-def run_training(model, train_loader, valid_loader, optimizer, loss_fn, scheduler, exp_number, device, num_epochs):
-    Path("logs").joinpath(config.MODEL_TYPE).joinpath("exp_" + str(exp_number)).mkdir(parents=True, exist_ok=True)
+def run_training(model, train_loader, valid_loader, optimizer, loss_fn, scheduler, experiment_path, device, num_epochs):
+    # Path("logs").joinpath(config.MODEL_TYPE).joinpath("exp_" + str(exp_number)).mkdir(parents=True, exist_ok=True)
 
     if torch.cuda.is_available():
         print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
@@ -185,11 +163,9 @@ def run_training(model, train_loader, valid_loader, optimizer, loss_fn, schedule
         if val_epoch_acc >= best_epoch_acc:
             best_epoch_acc = val_epoch_acc
             best_model_wts = copy.deepcopy(model.state_dict())
-            PATH = Path("logs").joinpath(config.MODEL_TYPE).joinpath("exp_" + str(exp_number)).joinpath(
+            PATH = Path(experiment_path).joinpath(
                 "e{:.0f}_val_loss_{:.4f}_val_acc_{:.4f}.pth".format(epoch, val_epoch_loss, val_epoch_acc))
             torch.save(model.state_dict(), PATH)
-
-            print()
 
             end = time.time()
             time_elapsed = end - start
@@ -264,62 +240,25 @@ def get_last_exp_number(model_name):
         return max([int(x.split("_")[1]) for x in folders_exp]) + 1
 
 
+def create_and_get_experiment_path() -> str:
+    experiment_name = config.MODEL_TYPE
+    experiment_number = get_last_exp_number(experiment_name)
+
+    experiment_path = "logs" + os.sep + experiment_name + os.sep + "exp_" + str(experiment_number)
+
+    Path(experiment_path).mkdir(parents=True, exist_ok=True)
+
+    return experiment_path
+
+
 def main():
-    # transform = transforms.Compose([
-    #     transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    # ])
-    #
-    # train_dataset = torchvision.datasets.ImageFolder(root="data/train_val_test_split/train", transform=transform)
-    # test_dataset = torchvision.datasets.ImageFolder(root="data/train_val_test_split/val", transform=transform)
-    #
-    # class_weights = []
-    # count_all_files = 0
-    # for root, subdir, files in os.walk("data/train_val_test_split/train"):
-    #     if len(files) > 0:
-    #         class_weights.append(len(files))
-    #         count_all_files += len(files)
-    #
-    # classes_weights = [x / count_all_files for x in class_weights]
-    # print('classes_weights', classes_weights)
-    #
-    # path = Path("data/train_val_test_split/train")
-    # train_files = list(path.rglob('*.jpg'))
-    # train_labels = [path.parent.name for path in train_files]
-    #
-    # label_encoder = LabelEncoder()
-    # encoded = label_encoder.fit_transform(train_labels)
-    # train_labels = label_encoder.transform(train_labels)
-    #
-    # sample_weights = [0] * len(train_files)
-    #
-    # for idx, (data, label) in enumerate(zip(train_files, train_labels)):
-    #     class_weight = classes_weights[label]
-    #     sample_weights[idx] = class_weight
-    #
-    # sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
-    #
-    # train_loader = DataLoader(
-    #     train_dataset,
-    #     shuffle=False,
-    #     batch_size=config.BATCH_SIZE,
-    #     num_workers=config.NUM_WORKERS,
-    #     pin_memory=True,
-    #     sampler=sampler
-    # )
-    # val_loader = DataLoader(
-    #     test_dataset,
-    #     shuffle=False,
-    #     batch_size=config.BATCH_SIZE,
-    #     num_workers=config.NUM_WORKERS,
-    # )
+    seed_everything(config.SEED)
 
-    exp_number = get_last_exp_number()
+    experiment_path = create_and_get_experiment_path()
 
-    need_to_prepare_dataset = False
+    need_to_prepare_dataset = True
     if need_to_prepare_dataset:
-        train_val_test_split(data_dir="data/dataset (copy)")
+        train_val_test_split(data_dir="data/dataset")
 
     train_loader, val_loader, test_loader, dataset_train, dataset_val, dataset_test, label_encoder = dataset.get_loaders(
         config.IMAGE_SIZE,
@@ -335,7 +274,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE, weight_decay=config.WEIGHT_DECAY)
     scheduler = fetch_scheduler(optimizer)
 
-    model, history = run_training(model, train_loader, val_loader, optimizer, loss_fn, scheduler, exp_number,
+    model, history = run_training(model, train_loader, val_loader, optimizer, loss_fn, scheduler, experiment_path,
                                   device=config.DEVICE,
                                   num_epochs=config.NUM_EPOCHS)
 

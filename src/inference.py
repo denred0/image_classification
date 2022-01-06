@@ -16,13 +16,15 @@ from albumentations.pytorch import ToTensorV2
 
 import config
 
+from my_utils import get_model
 
-def get_model(model_type, num_classes):
-    model = timm.create_model(model_type, pretrained=True)
-    in_features = model.head.in_features
-    model.head = nn.Linear(in_features, num_classes)
-
-    return model
+#
+# def get_model(model_type, num_classes):
+#     model = timm.create_model(model_type, pretrained=True)
+#     in_features = model.head.in_features
+#     model.head = nn.Linear(in_features, num_classes)
+#
+#     return model
 
 
 val_transforms = A.Compose([
@@ -32,7 +34,7 @@ val_transforms = A.Compose([
 ], p=1.0)
 
 model = get_model(config.MODEL_TYPE, config.NUM_CLASSES)
-model.load_state_dict(torch.load("logs/exp_1/acc_0.7630_epoch_1.pth"))
+model.load_state_dict(torch.load("logs/tf_efficientnet_b5/exp_4/e6_val_loss_0.0156_val_acc_1.0000.pth"))
 model = model.to(config.DEVICE)
 model.eval()
 # print(model)
@@ -53,7 +55,7 @@ correct = 0
 all = 0
 sm = torch.nn.Softmax()
 
-input_dir = "data/inference/input_dishes"
+input_dir = "data/train_val_test_split/test"
 for root, dirs, files in os.walk(input_dir):
     for folder in tqdm(dirs):
 
