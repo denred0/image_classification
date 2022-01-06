@@ -17,7 +17,7 @@ def train_val_test_split(input_data_dir: str, output_data_dir: str, val_fraction
 
     train_val_test_dict = get_train_val_test_images(input_data_dir, val_fraction, test_fraction)
 
-    copy_images_to_folder_classes(train_val_test_dict)
+    copy_images_to_folder_classes(train_val_test_dict, output_data_dir)
 
 
 def get_train_val_test_images(path_to_dataset: str, val_fraction=0.1, test_fraction=0.1) -> dict:
@@ -37,7 +37,7 @@ def get_train_val_test_images(path_to_dataset: str, val_fraction=0.1, test_fract
     return {"train": train_files, "val": val_files, "test": test_files}
 
 
-def copy_images_to_folder_classes(train_val_test_dict: dict) -> None:
+def copy_images_to_folder_classes(train_val_test_dict: dict, output_data_dir:str) -> None:
     for part, files in train_val_test_dict.items():
         labels = [str(path).split(os.sep)[-2] for path in files]
         for label in set(labels):

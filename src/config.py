@@ -1,8 +1,8 @@
 import torch
 
-NUM_CLASSES = 3
+NUM_CLASSES = 2
 IMAGE_SIZE = 456
-IMAGE_EXT = "png"
+IMAGE_EXT = "jpg"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 MEAN = [0.485, 0.456, 0.406]

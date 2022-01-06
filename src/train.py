@@ -258,7 +258,7 @@ def main():
 
     need_to_prepare_dataset = True
     if need_to_prepare_dataset:
-        train_val_test_split(data_dir="data/dataset")
+        train_val_test_split(input_data_dir="data/dataset", output_data_dir="data/train_val_test_split")
 
     train_loader, val_loader, test_loader, dataset_train, dataset_val, dataset_test, label_encoder = dataset.get_loaders(
         config.IMAGE_SIZE,
